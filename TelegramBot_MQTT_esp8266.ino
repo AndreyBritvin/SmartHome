@@ -1,25 +1,28 @@
+
 /*******************************************************************
-*  An example of bot that echos back any messages received         *
-*                                                                  *
-*  written by Giacarlo Bacchio (Gianbacchio on Github)             *
-*  adapted by Brian Lough                                          *
+*  Telegram Bot and MQTT service, which can open door from         *
+*  different places of all the world                               *                                
+*  GitHub: https://github.com/AndreyBritvin/SmartHome             
+*  By Andrey Britvin                                         *
 *******************************************************************/
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
 #include <PubSubClient.h>
-String clientName = "CLIENTNAME";
+//String clientName = "test_mqtt_bot";
 // Initialize Wifi connection to the router
-char ssid[] = "login";     // your network SSID (name)
-char password[] = "password"; // your network key
+char ssid[] = "";     // your network SSID (name)
+char password[] = ""; // your network key
 
-const char *mqtt_server = "MQTT_IP"; // Имя сервера MQTT
-const int mqtt_port = 0; // Порт для подключения к серверу MQTT
-const char *mqtt_user = "loginMQTT"; // Логи от сервер
-const char *mqtt_pass = "passwordMQTT"; // Пароль от сервера
-
+const char *mqtt_server = ""; // Имя сервера MQTT
+const int mqtt_port = 1883; // Порт для подключения к серверу MQTT
+const char *mqtt_user = ""; // Логи от сервер
+const char *mqtt_pass = ""; // Пароль от сервера
+//char ssid[] = "FD-95";     // your network SSID (name)
+//char password[] = "qwertyasdf"; // your network key
+String topicSub = "corridor/door/lift";
 // Initialize Telegram BOT
-#define BOTtoken "BOT_TOKEN"  // your Bot Token (Get from Botfather)
+#define BOTtoken ""  // your Bot Token (Get from Botfather)
 
 WiFiClientSecure wclient;
 WiFiClient wclientMQTT;
@@ -43,16 +46,17 @@ Serial.println(pub.payload_string()); // выводим в сериал порт
 
 String payload = pub.payload_string();
 
-if(String(pub.topic()) == "corridor/door/lift") // проверяем из нужного ли нам топика пришли данные
+if(String(pub.topic()) == topicSub) // проверяем из нужного ли нам топика пришли данные
 {
 
 if(payload == "on")
 {
+   bot.sendMessage("-154850675", "Door is ON", "");
 toggleRelay(true); // включаем или выключаем светодиод в зависимоти от полученных значений данных
 delay(1000);
 toggleRelay(false);
 Serial.println("door opened");
-client.publish("corridor/door/lift", "off");
+client.publish(topicSub, "off");
 }
 
 //client.publish("led/data", String(stled));//Replace from print to publish
@@ -71,14 +75,14 @@ void handleNewMessages(int numNewMessages) {
     String from_name = bot.messages[i].from_name;
     if (from_name == "") from_name = "Guest";
 
-    if (text == "/unlock") {
+    if (text == "/unlock1") {
        toggleRelay(true);
        delay(1000);
        toggleRelay(false);
        Serial.println("door opened");
       digitalWrite(ledPin, HIGH);   // turn the LED on (HIGH is the voltage level)
       ledStatus = 0 ;
-      bot.sendMessage(chat_id, "Door is ON", "");
+      bot.sendMessage(chat_id, "Дверь у лифта открыта. \n Заходите пожалуйста!", "");
     }
 
     if (text == "/status") {
@@ -187,7 +191,7 @@ if (WiFi.status() == WL_CONNECTED) {
   
 if (!client.connected()) {
 Serial.println("Connecting to MQTT server");
-if (client.connect(MQTT::Connect(clientName).set_auth(mqtt_user, mqtt_pass))) {
+if (client.connect(MQTT::Connect("esp8266-door-lift").set_auth(mqtt_user, mqtt_pass))) {
 Serial.println("Connected to MQTT server");
 
 //Serial.println("Start register callback");
@@ -197,7 +201,7 @@ client.set_callback(callback);
 
 //Serial.println("Start subscribe to test/led");
 
-client.subscribe("corridor/door/lift"); // подписывааемся по топик с данными для светодиода
+client.subscribe(topicSub); // подписывааемся по топик с данными для светодиода
 //Serial.println("End subscribtion");
 //client.publish("test/test","its work");
 
